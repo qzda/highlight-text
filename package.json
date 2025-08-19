@@ -1,0 +1,24 @@
+{
+  "name": "highlight-text",
+  "version": "0.0.1",
+  "description": "Highlight your selected text in web",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "NODE_ENV=dev bun run ./build.ts",
+    "build": "bun run ./build.ts"
+  },
+  "keywords": [
+    "tampermonkey",
+    "user-scripts",
+    "highlight",
+    "select-text"
+  ],
+  "dependencies": {
+    "@qzda/prolog": "latest"
+  },
+  "devDependencies": {
+    "fs-extra": "^11.2.0",
+    "@types/fs-extra": "^v11.0.4"
+  }
+}
