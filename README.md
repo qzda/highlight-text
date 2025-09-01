@@ -2,7 +2,7 @@
 
 Highlight your selected text in web
 
-![demo1](./image/demo1.png)
+![](./image/demo1.png)
 
 ## Install
 
@@ -23,4 +23,4 @@ bun dev
 # 📦  Bundled     => dist/highlight-text.user.js
 ```
 
-Add the `dist/gmail-ad-filter.user.js` file to Tampermonkey.
+Add the `dist/highlight-text.user.js` file to Tampermonkey.
