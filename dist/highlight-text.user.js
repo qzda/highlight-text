@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name highlight-text
+// @name Highlight Text
 // @description Highlight your selected text in web
 // @author qzda
 // @version 0.0.1
@@ -16,6 +16,7 @@
 // @grant unsafeWindow
 // @grant GM_addStyle
 // @grant GM_addElement
+// @grant GM_registerMenuCommand
 // ==/UserScript==
 
 // ../node_modules/@qzda/prolog/dist/index.js
@@ -28,6 +29,7 @@ var Colors = {
   magenta: 35,
   cyan: 36,
   white: 37,
+  gray: 90,
   brightBlack: 90,
   brightRed: 91,
   brightGreen: 92,
@@ -46,6 +48,7 @@ var Backgrounds = {
   bgMagenta: 45,
   bgCyan: 46,
   bgWhite: 47,
+  bgGray: 100,
   bgBrightBlack: 100,
   bgBrightRed: 101,
   bgBrightGreen: 102,
@@ -74,37 +77,61 @@ var dist_default = Obj;
 
 // ../package.json
 var name = "highlight-text";
+var displayName = "Highlight Text";
 var version = "0.0.1";
+
+// ../utils/dev.ts
+var isDev = false;
 
 // ../utils/log.ts
 function log(...arg) {
-  console.log(dist_default.bgBlack(dist_default.brightYellow(`${name} v${version}`)), ...arg);
+  console.log(dist_default.bgBlack(dist_default.brightYellow(`${displayName} v${version}`)), ...arg);
+}
+function devLog(...arg) {
+  if (isDev) {
+    log(...arg);
+  }
 }
 
 // ../utils/style.ts
 function addStyles(id, css) {
   const styleID = `${name}-${id}`;
   const oldStyle = document.getElementById(styleID);
-  const head = document.querySelector("head");
   if (oldStyle) {
     if (oldStyle.textContent !== css) {
       oldStyle.textContent = css;
+      devLog("update css");
     }
     return oldStyle;
   } else {
     const style = document.createElement("style");
     style.id = styleID;
     style.textContent = css;
-    head?.appendChild(style);
+    document.head.appendChild(style);
+    devLog("add css");
     return style;
   }
 }
 
+// initMenuCommand.ts
+function initMenuCommand() {
+  GM_registerMenuCommand("Clear All", function(event) {
+    document.querySelectorAll(`span.${name}.colored`).forEach((span) => {
+      const textNode = document.createTextNode(span.textContent);
+      span.replaceWith(textNode);
+    });
+  }, {
+    autoClose: true
+  });
+  devLog("initMenuCommand");
+}
+
 // index.ts
 log();
+initMenuCommand();
 var colors = ["red", "yellow", "green", "blue", "#8e44ad"];
 var toolbarCSS = `
-  .toolbar {
+  .${name}.toolbar {
     position: absolute;
     background: #fff;
     padding: 6px 8px;
@@ -116,10 +143,10 @@ var toolbarCSS = `
     gap: 6px;
     opacity: 0;
     transform: translateY(8px);
-    animation: fadeInUp 0.2s ease-out forwards;
+    animation: ${name}-fadeInUp 0.2s ease-out forwards;
   }
 
-  .toolbar div {
+  .${name}.toolbar .option {
     width: 20px;
     height: 20px;
     border-radius: 4px;
@@ -129,13 +156,13 @@ var toolbarCSS = `
     text-align: center;
   }
 
-  .toolbar .reset {
+  .${name}.toolbar .reset {
     display: flex;
     justify-content: center;
     align-items: center;
   }
 
-  @keyframes fadeInUp {
+  @keyframes ${name}-fadeInUp {
     from {
       opacity: 0;
       transform: translateY(8px);
@@ -146,96 +173,97 @@ var toolbarCSS = `
     }
   }
 `;
-addStyles("toolbar", toolbarCSS);
 var currentToolbar = null;
 var savedRange;
 document.addEventListener("mouseup", (e) => {
-  if (e.target.closest?.(".toolbar")) {
+  if (e.target.closest?.(`.${name}.toolbar`)) {
     return;
   }
   const selection = window.getSelection();
   const text = selection?.toString().trim();
-  if (text && !selection?.isCollapsed) {
+  if (!selection?.isCollapsed && text) {
+    devLog("select text", text);
+    addStyles("toolbar", toolbarCSS);
     if (currentToolbar) {
       currentToolbar.remove();
       currentToolbar = null;
     }
     savedRange = selection?.getRangeAt(0).cloneRange();
-    let textNode = savedRange?.startContainer;
-    const toolbar = document.createElement("div");
-    toolbar.className = "toolbar";
-    colors.forEach((color, colorIndex) => {
-      const swatch = document.createElement("div");
-      swatch.className = "color-swatch";
-      swatch.style.background = color;
-      swatch.onclick = () => {
-        if (!savedRange)
-          return;
-        const selectedTextString = savedRange.toString();
-        const className = `colored color-${colorIndex}`;
-        if (textNode?.nodeName === "#text" && textNode.parentNode?.nodeName === "SPAN" && textNode.parentNode?.classList.contains("colored")) {
-          textNode.parentNode.style.color = color;
-        } else {
-          const span = document.createElement("span");
-          span.className = className;
-          span.style.color = color;
-          span.textContent = selectedTextString;
-          savedRange?.deleteContents();
-          savedRange?.insertNode(span);
-        }
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-        let node;
-        while (node = walker.nextNode()) {
-          if (node.nodeName === "#text" && node.nodeValue?.includes(savedRange.toString())) {
-            const parent = node.parentNode;
-            if (parent.classList.contains("colored"))
-              continue;
-            const frag = document.createDocumentFragment();
-            const parts = node.nodeValue.split(savedRange.toString());
-            parts.forEach((part, index) => {
-              frag.appendChild(document.createTextNode(part));
-              if (index < parts.length - 1) {
-                const span = document.createElement("span");
-                span.className = `colored color-${colorIndex}`;
-                span.style.color = color;
-                span.textContent = savedRange.toString();
-                frag.appendChild(span);
-              }
-            });
-            parent.replaceChild(frag, node);
+    const textNode = savedRange?.startContainer;
+    if (textNode && textNode?.nodeName === "#text") {
+      const toolbar = document.createElement("div");
+      toolbar.className = `${name} toolbar`;
+      colors.forEach((color, colorIndex) => {
+        const option = document.createElement("div");
+        option.className = `${name} option`;
+        option.style.background = color;
+        option.onclick = () => {
+          if (!savedRange)
+            return;
+          const selectedTextString = savedRange.toString();
+          const className = `${name} colored color-${colorIndex}`;
+          if (textNode.parentNode?.nodeName === "SPAN" && textNode.parentNode?.className.includes(name) && textNode.parentNode?.className.includes("colored")) {
+            textNode.parentNode.style.backgroundColor = color;
+          } else {
+            const span = document.createElement("span");
+            span.className = className;
+            span.style.backgroundColor = color;
+            span.textContent = selectedTextString;
+            savedRange?.deleteContents();
+            savedRange?.insertNode(span);
           }
-        }
-        toolbar.remove();
-        currentToolbar = null;
-        savedRange = undefined;
-        selection?.removeAllRanges();
-      };
-      toolbar.appendChild(swatch);
-    });
-    if (textNode?.nodeName === "#text" && textNode?.parentNode?.nodeName === "SPAN" && (textNode?.parentNode).classList.contains("colored")) {
-      const reset = document.createElement("div");
-      reset.className = "reset";
-      reset.textContent = "X";
-      reset.onclick = () => {
-        if (!savedRange)
-          return;
-        document.querySelectorAll(`span.${textNode.parentNode.classList.value.replaceAll(" ", ".")}`).forEach((span) => {
-          const textNode2 = document.createTextNode(span.textContent);
-          span.replaceWith(textNode2);
-        });
-        toolbar.remove();
-        currentToolbar = null;
-        savedRange = undefined;
-        selection?.removeAllRanges();
-      };
-      toolbar.appendChild(reset);
-    }
-    document.body.appendChild(toolbar);
-    const rect = savedRange?.getBoundingClientRect();
-    if (rect) {
-      toolbar.style.left = `${rect.left + window.scrollX}px`;
-      toolbar.style.top = `${rect.top + window.scrollY - 40}px`;
-      currentToolbar = toolbar;
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+          let node;
+          while (node = walker.nextNode()) {
+            if (node.nodeName === "#text" && node.nodeValue?.includes(savedRange.toString())) {
+              const parent = node.parentNode;
+              if (parent.classList.contains("colored"))
+                continue;
+              const frag = document.createDocumentFragment();
+              const parts = node.nodeValue.split(savedRange.toString());
+              parts.forEach((part, index) => {
+                frag.appendChild(document.createTextNode(part));
+                if (index < parts.length - 1) {
+                  const span = document.createElement("span");
+                  span.className = `${name} colored color-${colorIndex}`;
+                  span.style.backgroundColor = color;
+                  span.textContent = savedRange.toString();
+                  frag.appendChild(span);
+                }
+              });
+              parent.replaceChild(frag, node);
+            }
+          }
+          toolbar.remove();
+          currentToolbar = null;
+          savedRange = undefined;
+          selection?.removeAllRanges();
+        };
+        toolbar.appendChild(option);
+      });
+      if (textNode?.nodeName === "#text" && textNode?.parentNode?.nodeName === "SPAN" && (textNode?.parentNode).classList.contains(name) && (textNode?.parentNode).classList.contains("colored")) {
+        const reset = document.createElement("div");
+        reset.className = "option reset";
+        reset.textContent = "X";
+        reset.onclick = () => {
+          document.querySelectorAll(`span.${textNode.parentNode.className.replaceAll(" ", ".")}`).forEach((span) => {
+            const textNode2 = document.createTextNode(span.textContent);
+            span.replaceWith(textNode2);
+          });
+          toolbar.remove();
+          currentToolbar = null;
+          savedRange = undefined;
+          selection?.removeAllRanges();
+        };
+        toolbar.appendChild(reset);
+      }
+      const rect = savedRange?.getBoundingClientRect();
+      if (rect) {
+        toolbar.style.left = `${rect.left + window.scrollX}px`;
+        toolbar.style.top = `${rect.top + window.scrollY - 40}px`;
+        currentToolbar = toolbar;
+      }
+      document.body.appendChild(toolbar);
     }
   }
 });
@@ -245,9 +273,4 @@ document.addEventListener("click", (e) => {
     currentToolbar = null;
     savedRange = undefined;
   }
-});
-document.addEventListener("scroll", () => {
-  currentToolbar?.remove();
-  currentToolbar = null;
-  savedRange = undefined;
 });
