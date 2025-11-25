@@ -1,16 +1,16 @@
 import prolog from "@qzda/prolog";
-import { name, version } from "../package.json";
+import { displayName, version } from "../package.json";
 import { isDev } from "./dev";
 
 export function log(...arg: any[]) {
   console.log(
-    prolog.bgBlack(prolog.brightYellow(`${name} v${version}`)),
+    prolog.bgBlack(prolog.brightYellow(`${displayName} v${version}`)),
     ...arg
   );
 }
 
 export function logError(...arg: any[]) {
-  console.log(prolog.bgRed(`${name} ${version}`), ...arg);
+  console.log(prolog.bgRed(`${displayName} ${version}`), ...arg);
 }
 
 export function devLog(...arg: any[]) {

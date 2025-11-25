@@ -1,4 +1,4 @@
-import { name, description, version } from "./package.json";
+import { displayName, description, version } from "./package.json";
 
 const icon = "https://github.com/qzda.png";
 
@@ -8,7 +8,7 @@ const userScriptUrl =
 type configValue = string | number;
 
 export const UserScriptConfig: Record<string, configValue | configValue[]> = {
-  name,
+  name: displayName,
   description,
   author: "qzda",
   version,
@@ -21,5 +21,10 @@ export const UserScriptConfig: Record<string, configValue | configValue[]> = {
   copyright: "MIT",
   "run-at": "document-end",
   connect: ["raw.githubusercontent.com", "github.com"],
-  grant: ["unsafeWindow", "GM_addStyle", "GM_addElement"],
+  grant: [
+    "unsafeWindow",
+    "GM_addStyle",
+    "GM_addElement",
+    "GM_registerMenuCommand",
+  ],
 };

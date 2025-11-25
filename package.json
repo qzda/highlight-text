@@ -1,5 +1,6 @@
 {
   "name": "highlight-text",
+  "displayName": "Highlight Text",
   "version": "0.0.1",
   "description": "Highlight your selected text in web",
   "type": "module",
@@ -18,7 +19,8 @@
     "@qzda/prolog": "latest"
   },
   "devDependencies": {
-    "fs-extra": "^11.2.0",
-    "@types/fs-extra": "^v11.0.4"
+    "@types/fs-extra": "^v11.0.4",
+    "@types/tampermonkey": "^5.0.5",
+    "fs-extra": "^11.2.0"
   }
 }

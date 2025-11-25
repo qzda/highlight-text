@@ -1,14 +1,17 @@
 "use strict";
-import { log } from "../utils/log";
+import { devLog, log } from "../utils/log";
 import { addStyles } from "../utils/style";
+import { initMenuCommand } from "./initMenuCommand";
+import { name } from "../package.json";
 
 log();
+initMenuCommand();
 
 // 预设颜色列表
 const colors = ["red", "yellow", "green", "blue", "#8e44ad"];
 
 const toolbarCSS = `
-  .toolbar {
+  .${name}.toolbar {
     position: absolute;
     background: #fff;
     padding: 6px 8px;
@@ -20,10 +23,10 @@ const toolbarCSS = `
     gap: 6px;
     opacity: 0;
     transform: translateY(8px);
-    animation: fadeInUp 0.2s ease-out forwards;
+    animation: ${name}-fadeInUp 0.2s ease-out forwards;
   }
 
-  .toolbar div {
+  .${name}.toolbar .option {
     width: 20px;
     height: 20px;
     border-radius: 4px;
@@ -33,13 +36,13 @@ const toolbarCSS = `
     text-align: center;
   }
 
-  .toolbar .reset {
+  .${name}.toolbar .reset {
     display: flex;
     justify-content: center;
     align-items: center;
   }
 
-  @keyframes fadeInUp {
+  @keyframes ${name}-fadeInUp {
     from {
       opacity: 0;
       transform: translateY(8px);
@@ -51,21 +54,23 @@ const toolbarCSS = `
   }
 `;
 
-addStyles("toolbar", toolbarCSS);
-
 let currentToolbar: HTMLDivElement | null = null;
 let savedRange: Range | undefined; // 用来保存当前选区
 
 document.addEventListener("mouseup", (e) => {
   // 如果点击的是工具条内部元素，跳过
-  if ((e.target as Element).closest?.(".toolbar")) {
+  if ((e.target as Element).closest?.(`.${name}.toolbar`)) {
     return;
   }
 
   const selection = window.getSelection();
   const text = selection?.toString().trim();
 
-  if (text && !selection?.isCollapsed) {
+  if (!selection?.isCollapsed && text) {
+    devLog("select text", text);
+
+    addStyles("toolbar", toolbarCSS);
+
     // 移除旧的工具条
     if (currentToolbar) {
       currentToolbar.remove();
@@ -75,130 +80,134 @@ document.addEventListener("mouseup", (e) => {
     // 保存当前选区
     savedRange = selection?.getRangeAt(0).cloneRange();
     // 选中的文字
-    let textNode = savedRange?.startContainer;
+    const textNode = savedRange?.startContainer;
 
-    // 创建工具条
-    const toolbar = document.createElement("div");
-    toolbar.className = "toolbar";
+    if (textNode && textNode?.nodeName === "#text") {
+      // 创建工具条
+      const toolbar = document.createElement("div");
+      toolbar.className = `${name} toolbar`;
 
-    // 颜色选项
-    colors.forEach((color, colorIndex) => {
-      const swatch = document.createElement("div");
-      swatch.className = "color-swatch";
-      swatch.style.background = color;
+      // 颜色选项
+      colors.forEach((color, colorIndex) => {
+        const option = document.createElement("div");
+        option.className = `${name} option`;
+        option.style.background = color;
 
-      swatch.onclick = () => {
-        if (!savedRange) return;
+        option.onclick = () => {
+          if (!savedRange) return;
 
-        const selectedTextString = savedRange.toString();
-        const className = `colored color-${colorIndex}`;
+          const selectedTextString = savedRange.toString();
+          const className = `${name} colored color-${colorIndex}`;
 
-        if (
-          textNode?.nodeName === "#text" &&
-          textNode.parentNode?.nodeName === "SPAN" &&
-          (textNode.parentNode as HTMLSpanElement)?.classList.contains(
-            "colored"
-          )
-        ) {
-          (textNode.parentNode as HTMLSpanElement).style.color = color;
-        } else {
-          const span = document.createElement("span");
-          span.className = className;
-          span.style.color = color;
-          span.textContent = selectedTextString;
-
-          savedRange?.deleteContents();
-          savedRange?.insertNode(span);
-        }
-
-        const walker = document.createTreeWalker(
-          document.body,
-          NodeFilter.SHOW_TEXT,
-          null
-        );
-
-        let node: Node | null;
-        while ((node = walker.nextNode())) {
           if (
-            node.nodeName === "#text" &&
-            node.nodeValue?.includes(savedRange.toString())
+            textNode.parentNode?.nodeName === "SPAN" &&
+            (textNode.parentNode as HTMLSpanElement)?.className.includes(
+              name
+            ) &&
+            (textNode.parentNode as HTMLSpanElement)?.className.includes(
+              "colored"
+            )
           ) {
-            const parent = node.parentNode as HTMLElement;
+            (textNode.parentNode as HTMLSpanElement).style.backgroundColor =
+              color;
+          } else {
+            const span = document.createElement("span");
+            span.className = className;
+            span.style.backgroundColor = color;
+            span.textContent = selectedTextString;
 
-            // 避免重复包裹已经有 colored 的文本
-            if (parent.classList.contains("colored")) continue;
+            savedRange?.deleteContents();
+            savedRange?.insertNode(span);
+          }
 
-            const frag = document.createDocumentFragment();
-            const parts = node.nodeValue.split(savedRange.toString());
+          const walker = document.createTreeWalker(
+            document.body,
+            NodeFilter.SHOW_TEXT,
+            null
+          );
 
-            parts.forEach((part, index) => {
-              frag.appendChild(document.createTextNode(part));
-              if (index < parts.length - 1) {
-                const span = document.createElement("span");
-                span.className = `colored color-${colorIndex}`;
-                span.style.color = color;
-                span.textContent = savedRange!.toString();
-                frag.appendChild(span);
-              }
+          let node: Node | null;
+          while ((node = walker.nextNode())) {
+            if (
+              node.nodeName === "#text" &&
+              node.nodeValue?.includes(savedRange.toString())
+            ) {
+              const parent = node.parentNode as HTMLElement;
+
+              // 避免重复包裹已经有 colored 的文本
+              if (parent.classList.contains("colored")) continue;
+
+              const frag = document.createDocumentFragment();
+              const parts = node.nodeValue.split(savedRange.toString());
+
+              parts.forEach((part, index) => {
+                frag.appendChild(document.createTextNode(part));
+                if (index < parts.length - 1) {
+                  const span = document.createElement("span");
+                  span.className = `${name} colored color-${colorIndex}`;
+                  span.style.backgroundColor = color;
+                  span.textContent = savedRange!.toString();
+                  frag.appendChild(span);
+                }
+              });
+
+              parent.replaceChild(frag, node);
+            }
+          }
+
+          // 清理
+          toolbar.remove();
+          currentToolbar = null;
+          savedRange = undefined;
+
+          // 清除高亮选区
+          selection?.removeAllRanges();
+        };
+
+        toolbar.appendChild(option);
+      });
+
+      // 判断选中的文本已经被 span.colored 包裹的时候，才执行
+      if (
+        textNode?.nodeName === "#text" &&
+        textNode?.parentNode?.nodeName === "SPAN" &&
+        (textNode?.parentNode as HTMLSpanElement).classList.contains(name) &&
+        (textNode?.parentNode as HTMLSpanElement).classList.contains("colored")
+      ) {
+        // 恢复默认颜色选项
+        const reset = document.createElement("div");
+        reset.className = "option reset";
+        reset.textContent = "X";
+        reset.onclick = () => {
+          // 找出页面所有相同颜色的 span.colored.color-1，替换成纯文本
+          document
+            .querySelectorAll(
+              `span.${(
+                textNode.parentNode as HTMLSpanElement
+              ).className.replaceAll(" ", ".")}`
+            )
+            .forEach((span) => {
+              const textNode = document.createTextNode(span.textContent);
+              span.replaceWith(textNode);
             });
 
-            parent.replaceChild(frag, node);
-          }
-        }
+          toolbar.remove();
+          currentToolbar = null;
+          savedRange = undefined;
+          selection?.removeAllRanges();
+        };
+        toolbar.appendChild(reset);
+      }
 
-        // 清理
-        toolbar.remove();
-        currentToolbar = null;
-        savedRange = undefined;
+      // 定位工具条
+      const rect = savedRange?.getBoundingClientRect();
+      if (rect) {
+        toolbar.style.left = `${rect.left + window.scrollX}px`;
+        toolbar.style.top = `${rect.top + window.scrollY - 40}px`;
+        currentToolbar = toolbar;
+      }
 
-        // 清除高亮选区
-        selection?.removeAllRanges();
-      };
-
-      toolbar.appendChild(swatch);
-    });
-
-    // 判断选中的文本已经被 span.colored 包裹的时候，才执行
-    if (
-      textNode?.nodeName === "#text" &&
-      textNode?.parentNode?.nodeName === "SPAN" &&
-      (textNode?.parentNode as HTMLSpanElement).classList.contains("colored")
-    ) {
-      // 恢复默认颜色选项
-      const reset = document.createElement("div");
-      reset.className = "reset";
-      reset.textContent = "X";
-      reset.onclick = () => {
-        if (!savedRange) return;
-
-        // 找出页面所有相同颜色的 span.colored，替换成纯文本
-        document
-          .querySelectorAll(
-            `span.${(
-              textNode.parentNode as HTMLSpanElement
-            ).classList.value.replaceAll(" ", ".")}`
-          )
-          .forEach((span) => {
-            const textNode = document.createTextNode(span.textContent);
-            span.replaceWith(textNode);
-          });
-
-        toolbar.remove();
-        currentToolbar = null;
-        savedRange = undefined;
-        selection?.removeAllRanges();
-      };
-      toolbar.appendChild(reset);
-    }
-
-    document.body.appendChild(toolbar);
-
-    // 定位工具条
-    const rect = savedRange?.getBoundingClientRect();
-    if (rect) {
-      toolbar.style.left = `${rect.left + window.scrollX}px`;
-      toolbar.style.top = `${rect.top + window.scrollY - 40}px`;
-      currentToolbar = toolbar;
+      document.body.appendChild(toolbar);
     }
   }
 });
@@ -214,10 +223,4 @@ document.addEventListener("click", (e) => {
     currentToolbar = null;
     savedRange = undefined;
   }
-});
-
-document.addEventListener("scroll", () => {
-  currentToolbar?.remove();
-  currentToolbar = null;
-  savedRange = undefined;
 });

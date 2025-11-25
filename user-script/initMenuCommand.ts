@@ -1,14 +1,17 @@
 import { devLog } from "../utils/log";
+import { name } from "../package.json";
 
 export function initMenuCommand() {
-  // @ts-ignore
   GM_registerMenuCommand(
-    "选项1",
+    "Clear All",
     function (event: MouseEvent | KeyboardEvent) {
-      // todo
+      document.querySelectorAll(`span.${name}.colored`).forEach((span) => {
+        const textNode = document.createTextNode(span.textContent);
+        span.replaceWith(textNode);
+      });
     },
     {
-      autoClose: false,
+      autoClose: true,
     }
   );
 
